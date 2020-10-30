@@ -1,9 +1,6 @@
 package ro.Domain;
 
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -116,13 +113,14 @@ public class Decoder {
                 e.printStackTrace();
             }
         } else if (format.equals("P6")) {
-            try (Writer myWriter = new OutputStreamWriter(new FileOutputStream(fileName))) {
-                String s0 = "P6\n" + this.resolutionWidth + " " + resolutionHeight + "\n255\n";
-                myWriter.write(s0);
+            try ( DataOutputStream myWriter1 = new DataOutputStream(new FileOutputStream(fileName)) )
+            {
+                String s0 = "P6\n"+this.resolutionWidth + " " + resolutionHeight + "\n255\n";
+                myWriter1.write(s0.getBytes());
                 for (Pixel p : this.pixelList) {
-                    myWriter.write(p.getRed());
-                    myWriter.write(p.getGreen());
-                    myWriter.write(p.getBlue());
+                    myWriter1.writeByte(p.getRed());
+                    myWriter1.writeByte(p.getGreen());
+                    myWriter1.writeByte(p.getBlue());
                 }
             } catch (IOException e) {
                 System.out.println("An error occurred.");
