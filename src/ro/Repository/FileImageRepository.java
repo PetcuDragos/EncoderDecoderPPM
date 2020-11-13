@@ -21,47 +21,6 @@ public class FileImageRepository {
         blockList = new ArrayList<>();
     }
 
-    public void getEncodedDataFromFile(String fileName) {
-        try {
-            File file = new File(fileName);
-            Scanner fileDescriptor = new Scanner(file);
-
-            String format = "no format";
-
-            int line_number = 1;
-            while (fileDescriptor.hasNextLine()) {
-                String readline = fileDescriptor.nextLine();
-                if (!readline.contains("#")) {    // not getting the comments.
-                    if (line_number == 1) format = readline;  // first line should be the format
-                    else if (line_number == 2) {
-                        resolutionWidth = Integer.parseInt(readline.split(" ")[0]);
-                        resolutionHeight = Integer.parseInt(readline.split(" ")[1]);
-                    } else if (line_number == 3) {
-                        maxValueOfByteComponent = Integer.parseInt(readline);
-                    } else {
-                        if (format.equals("P3")) {
-                            int red = Integer.parseInt(readline), green = 0, blue = 0;
-                            if (fileDescriptor.hasNextLine()) green = Integer.parseInt(fileDescriptor.nextLine());
-                            if (fileDescriptor.hasNextLine()) blue = Integer.parseInt(fileDescriptor.nextLine());
-                            pixelList.add(new Pixel(red, green, blue));
-                        } else if (format.equals("P6")) {
-                            System.out.println("This format is not accepted");
-                            break;
-                        } else {
-                            System.out.println("format is corrupted");
-                            break;
-                        }
-                    }
-                    line_number += 1;
-                }
-                System.out.println(pixelList.size() + " pixels read");
-            }
-        } catch (FileNotFoundException e) {
-            System.out.println(fileName + " was not found.");
-        }
-    }
-
-
     public void getEncodedDataFromBinFile(String fileName) {
         try (DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(fileName)))) {
             int linenumber = 1;

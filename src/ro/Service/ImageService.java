@@ -20,12 +20,16 @@ public class ImageService {
         encoder.divideMatrixY();
         encoder.divideMatrixCb();
         encoder.divideMatrixCr();
+        encoder.performForwardDCT();
+        encoder.performQuantization();
         encoder.writeToFile("outputEncoder.txt");
     }
 
     public void decodeImage(String fileName) {
         this.imageRepository.getDecodedDataFromFile(fileName);
         Decoder decoder = new Decoder(imageRepository.getResolutionWidth(), imageRepository.getResolutionHeight(), imageRepository.getBlockList());
+        decoder.performDequantization();
+        decoder.performInverseDCT();
         decoder.formMatrices();
         decoder.transformBlocksToYMatrix();
         decoder.transformBlocksToCbMatrix();

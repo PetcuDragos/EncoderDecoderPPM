@@ -3,6 +3,7 @@ package ro.Domain;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -13,6 +14,8 @@ public class Decoder {
     private List<List<Double>> Cr_matrix;
     private List<Pixel> pixelList;
     private List<Block> blockList;
+    private List<Block> dctCoefficientBlockList;
+    private List<Block> quantizedBlockList;
     private int resolutionWidth;
     private int resolutionHeight;
 
@@ -21,7 +24,9 @@ public class Decoder {
         Cb_matrix = new ArrayList<>();
         Cr_matrix = new ArrayList<>();
         pixelList = new ArrayList<>();
-        this.blockList = blockList;
+        this.blockList = new ArrayList<>();
+        dctCoefficientBlockList = new ArrayList<>();
+        quantizedBlockList = blockList;
         this.resolutionWidth = resolutionWidth;
         this.resolutionHeight = resolutionHeight;
 
@@ -113,9 +118,8 @@ public class Decoder {
                 e.printStackTrace();
             }
         } else if (format.equals("P6")) {
-            try ( DataOutputStream myWriter1 = new DataOutputStream(new FileOutputStream(fileName)) )
-            {
-                String s0 = "P6\n"+this.resolutionWidth + " " + resolutionHeight + "\n255\n";
+            try (DataOutputStream myWriter1 = new DataOutputStream(new FileOutputStream(fileName))) {
+                String s0 = "P6\n" + this.resolutionWidth + " " + resolutionHeight + "\n255\n";
                 myWriter1.write(s0.getBytes());
                 for (Pixel p : this.pixelList) {
                     myWriter1.writeByte(p.getRed());
@@ -129,4 +133,108 @@ public class Decoder {
         }
     }
 
+
+    private List<List<Double>> transform8x8BlockTo8x8Matrix(Block block) {
+        List<List<Double>> matrix = new ArrayList<>();
+        for (int k = 0; k < 8; k++) {
+            matrix.add(new ArrayList<>(Arrays.asList(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)));
+        }
+        int index = 0;
+        for (int i = 0; i < 8; i ++) {
+            for (int j = 0; j < 8; j ++) {
+                matrix.get(i).set(j, block.getValues().get(index));
+                index++;
+            }
+        }
+        return matrix;
+    }
+
+
+    public void performDequantization() {
+        /*
+                6   4   4   6   10  16  20  24
+                5   5   6   8   10  23  24  22
+                6   5   6   10  16  23  28  22
+        Q =     6   7   9   12  20  35  32  25
+                7   9   15  22  27  44  41  31
+                10  14  22  26  32  42  45  37
+                20  26  31  35  41  48  48  40
+                29  37  38  39  45  40  41  40
+         */
+
+        List<List<Integer>> quantizationMatrix = new ArrayList<>();
+        quantizationMatrix.add(new ArrayList<>(Arrays.asList(6, 4, 4, 6, 10, 16, 20, 24)));
+        quantizationMatrix.add(new ArrayList<>(Arrays.asList(5, 5, 6, 8, 10, 23, 24, 22)));
+        quantizationMatrix.add(new ArrayList<>(Arrays.asList(6, 5, 6, 10, 16, 23, 28, 22)));
+        quantizationMatrix.add(new ArrayList<>(Arrays.asList(6, 7, 9, 12, 20, 35, 32, 25)));
+        quantizationMatrix.add(new ArrayList<>(Arrays.asList(7, 9, 15, 22, 27, 44, 41, 31)));
+        quantizationMatrix.add(new ArrayList<>(Arrays.asList(10, 14, 22, 26, 32, 42, 45, 37)));
+        quantizationMatrix.add(new ArrayList<>(Arrays.asList(20, 26, 31, 35, 41, 48, 48, 40)));
+        quantizationMatrix.add(new ArrayList<>(Arrays.asList(29, 37, 38, 39, 45, 40, 41, 40)));
+
+
+        for (Block block : quantizedBlockList) {
+
+            //transform the block into 8x8 matrix
+            List<List<Double>> matrix = transform8x8BlockTo8x8Matrix(block);
+
+            //divide the matrices
+
+            for (int i = 0; i < 8; i++) {
+                for (int j = 0; j < 8; j++) {
+                    matrix.get(i).set(j, matrix.get(i).get(j) * quantizationMatrix.get(i).get(j));
+                }
+            }
+
+            /// form new quantized blocks
+            Block newBlock = new Block(new ArrayList<>(), block.getTypeOfBlock(), block.getPositionX1(), block.getPositionY1(), block.getPositionX2(), block.getPositionY2());
+            for (int i = 0; i < 8; i++) {
+                for (int j = 0; j < 8; j++) {
+                    newBlock.getValues().add(matrix.get(i).get(j));
+                }
+            }
+            dctCoefficientBlockList.add(newBlock);
+        }
+    }
+
+    public void performInverseDCT() {
+        for (Block block : this.dctCoefficientBlockList) {
+            /// transforming dct blocks to 8x8 matrices
+            List<List<Double>> matrix;
+            matrix = transform8x8BlockTo8x8Matrix(block);
+
+            // form new dct coefficient blocks
+
+            Block newBlock = new Block(new ArrayList<>(), block.getTypeOfBlock(), block.getPositionX1(), block.getPositionY1(), block.getPositionX2(), block.getPositionY2());
+
+            for (int x = 0; x < 8; x++) {
+                for (int y = 0; y < 8; y++) {
+
+                    double sum = 0;
+                    for (int i = 0; i < 8; i++) {
+                        for (int j = 0; j < 8; j++) {
+                            double alphaU = 1, alphaV = 1;
+
+                            if (i == 0) alphaU = 1 / Math.sqrt(2);
+                            if (j == 0) alphaV = 1 / Math.sqrt(2);
+                            sum += alphaU * alphaV * matrix.get(i).get(j) * Math.cos((double)(2 * x + 1) * i * 3.14 * 0.0625) * Math.cos((double)(2 * y + 1) * j * 3.14 * 0.0625);
+                        }
+                    }
+                    if((newBlock.getTypeOfBlock()=='U' || newBlock.getTypeOfBlock()=='V')) {
+                        y++;
+                        newBlock.getValues().add(0.25 * sum);
+                    }
+                    else newBlock.getValues().add(0.25 * sum);
+                }
+                if((newBlock.getTypeOfBlock()=='U' || newBlock.getTypeOfBlock()=='V')) x++;
+            }
+
+            // add 128 from each value of matrix
+            for (int i = 0; i < newBlock.getValues().size(); i++) {
+                newBlock.getValues().set(i, newBlock.getValues().get(i) + 128);
+            }
+
+            blockList.add(newBlock);
+        }
+    }
 }
