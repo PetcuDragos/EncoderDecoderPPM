@@ -16,6 +16,9 @@ public class Encoder {
     private List<Block> blockList;
     private List<Block> dctCoefficientBlockList;
     private List<Block> quantizedBlockList;
+    private List<String> outputStringY;
+    private List<String> outputStringCb;
+    private List<String> outputStringCr;
     private int resolutionWidth;
     private int resolutionHeight;
 
@@ -24,6 +27,9 @@ public class Encoder {
         Cb_matrix = new ArrayList<>();
         Cr_matrix = new ArrayList<>();
         blockList = new ArrayList<>();
+        outputStringY = new ArrayList<>();
+        outputStringCb = new ArrayList<>();
+        outputStringCr = new ArrayList<>();
         dctCoefficientBlockList = new ArrayList<>();
         quantizedBlockList = new ArrayList<>();
         this.pixelList = pixelList;
@@ -150,6 +156,25 @@ public class Encoder {
         }
     }
 
+    public void writeOutput(String fileName){
+        try {
+            FileWriter myWriter = new FileWriter(fileName);
+            String s0 = this.resolutionWidth + " " + resolutionHeight + "\n";
+            myWriter.write(s0);
+            for(int i = 0 ; i < outputStringY.size(); i ++){
+                myWriter.write(outputStringY.get(i) + "\n");
+                myWriter.write(outputStringCb.get(i) + "\n");
+                myWriter.write(outputStringCr.get(i) + "\n");
+
+            }
+
+            myWriter.close();
+        } catch (IOException e) {
+            System.out.println("An error occurred.");
+            e.printStackTrace();
+        }
+    }
+
 
     public void performForwardDCT() {
 
@@ -181,7 +206,7 @@ public class Encoder {
                     double sum = 0;
                     for (int x = 0; x < 8; x++) {
                         for (int y = 0; y < 8; y++) {
-                            sum += matrix.get(x).get(y) * Math.cos((double)(2 * x + 1) * (i * 3.14 *0.0625)) * Math.cos((double)(2 * y + 1) * j * 3.14 *0.0625);
+                            sum += matrix.get(x).get(y) * Math.cos((double) (2 * x + 1) * (i * 3.14 * 0.0625)) * Math.cos((double) (2 * y + 1) * j * 3.14 * 0.0625);
                         }
                     }
 
@@ -201,8 +226,8 @@ public class Encoder {
             matrix.add(new ArrayList<>(Arrays.asList(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)));
         }
         int index = 0;
-        for (int i = 0; i < 8; i ++) {
-            for (int j = 0; j < 8; j ++) {
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
                 matrix.get(i).set(j, block.getValues().get(index));
                 index++;
             }
@@ -274,5 +299,71 @@ public class Encoder {
             }
             quantizedBlockList.add(newBlock);
         }
+    }
+
+    public void entropyEncoding() {
+        for (Block block : quantizedBlockList) {
+            String output = "";
+            List<Double> arrayOfBytes = zigZagBlockParsing(block);
+            //first value
+            output += "(" + smallestGreaterPowerOf2(arrayOfBytes.get(0).intValue()) + ")(" + arrayOfBytes.get(0).intValue() + ")";
+            // other values
+            int numberOfZeros = 0;
+            for (int i = 1; i < arrayOfBytes.size(); i++) {
+                if (arrayOfBytes.get(i).intValue() == 0) numberOfZeros += 1;
+                else {
+                    output += ",(" + numberOfZeros + "," + smallestGreaterPowerOf2(arrayOfBytes.get(i).intValue()) + ")(" + arrayOfBytes.get(i).intValue() + ")";
+                    numberOfZeros = 0;
+                }
+            }
+            output += ",(0,0)";
+            if(block.getTypeOfBlock()=='Y') outputStringY.add(output);
+            if(block.getTypeOfBlock()=='V') outputStringCb.add(output);
+            if(block.getTypeOfBlock()=='U') outputStringCr.add(output);
+        }
+
+    }
+
+    private int smallestGreaterPowerOf2(int n) {
+        int i = 0;
+        while (n != 0) {
+            n /= 2;
+            i++;
+        }
+        return i;
+    }
+
+    private List<Double> zigZagBlockParsing(Block block) {
+        List<List<Double>> matrix = this.transform8x8BlockTo8x8Matrix(block);
+        List<Double> arrayOfBytes = new ArrayList<>();
+        int n = matrix.size();
+        int m = matrix.get(0).size();
+        boolean goUpRight = true;
+        int i = 0, j = 0;
+        while (i < n  && j < m) {
+            arrayOfBytes.add(matrix.get(i).get(j));
+            if (goUpRight) {
+                if (i - 1 >= 0 && j + 1 <= m) {
+                    i --;
+                    j ++;
+                }
+                else{
+                    j++;
+                    goUpRight = false;
+                }
+            }
+            else{
+                if (i + 1 <= n && j - 1 >= 0) {
+                    i ++;
+                    j --;
+                }
+                else{
+                    i++;
+                    goUpRight = true;
+                }
+            }
+
+        }
+        return arrayOfBytes;
     }
 }

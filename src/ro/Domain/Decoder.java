@@ -16,24 +16,39 @@ public class Decoder {
     private List<Block> blockList;
     private List<Block> dctCoefficientBlockList;
     private List<Block> quantizedBlockList;
+    private List<String> output;
     private int resolutionWidth;
     private int resolutionHeight;
 
-    public Decoder(int resolutionWidth, int resolutionHeight, List<Block> blockList) {
+    public Decoder(int resolutionWidth, int resolutionHeight, List<String> output) {
+        initialize();
+        this.output = output;
+        this.resolutionWidth = resolutionWidth;
+        this.resolutionHeight = resolutionHeight;
+        // making them multiple of 8
+        this.resolutionWidth = this.resolutionWidth + (8 * Math.min(1, this.resolutionWidth % 8) - this.resolutionWidth % 8);
+        this.resolutionHeight = this.resolutionHeight + (8 * Math.min(1, this.resolutionHeight % 8) - this.resolutionHeight % 8);
+    }
+
+//    public Decoder(int resolutionWidth, int resolutionHeight, List<Block> blockList) {
+//        initialize();
+//        quantizedBlockList = blockList;
+//        this.resolutionWidth = resolutionWidth;
+//        this.resolutionHeight = resolutionHeight;
+//        // making them multiple of 8
+//        this.resolutionWidth = this.resolutionWidth + (8 * Math.min(1, this.resolutionWidth % 8) - this.resolutionWidth % 8);
+//        this.resolutionHeight = this.resolutionHeight + (8 * Math.min(1, this.resolutionHeight % 8) - this.resolutionHeight % 8);
+//    }
+
+    public void initialize() {
         Y_matrix = new ArrayList<>();
         Cb_matrix = new ArrayList<>();
         Cr_matrix = new ArrayList<>();
         pixelList = new ArrayList<>();
+        output = new ArrayList<>();
         this.blockList = new ArrayList<>();
         dctCoefficientBlockList = new ArrayList<>();
-        quantizedBlockList = blockList;
-        this.resolutionWidth = resolutionWidth;
-        this.resolutionHeight = resolutionHeight;
-
-        // making them multiple of 8
-        this.resolutionWidth = this.resolutionWidth + (8 * Math.min(1, this.resolutionWidth % 8) - this.resolutionWidth % 8);
-        this.resolutionHeight = this.resolutionHeight + (8 * Math.min(1, this.resolutionHeight % 8) - this.resolutionHeight % 8);
-
+        quantizedBlockList = new ArrayList<>();
     }
 
     public void formMatrices() {
@@ -140,8 +155,8 @@ public class Decoder {
             matrix.add(new ArrayList<>(Arrays.asList(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)));
         }
         int index = 0;
-        for (int i = 0; i < 8; i ++) {
-            for (int j = 0; j < 8; j ++) {
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
                 matrix.get(i).set(j, block.getValues().get(index));
                 index++;
             }
@@ -217,16 +232,15 @@ public class Decoder {
 
                             if (i == 0) alphaU = 1 / Math.sqrt(2);
                             if (j == 0) alphaV = 1 / Math.sqrt(2);
-                            sum += alphaU * alphaV * matrix.get(i).get(j) * Math.cos((double)(2 * x + 1) * i * 3.14 * 0.0625) * Math.cos((double)(2 * y + 1) * j * 3.14 * 0.0625);
+                            sum += alphaU * alphaV * matrix.get(i).get(j) * Math.cos((double) (2 * x + 1) * i * 3.14 * 0.0625) * Math.cos((double) (2 * y + 1) * j * 3.14 * 0.0625);
                         }
                     }
-                    if((newBlock.getTypeOfBlock()=='U' || newBlock.getTypeOfBlock()=='V')) {
+                    if ((newBlock.getTypeOfBlock() == 'U' || newBlock.getTypeOfBlock() == 'V')) {
                         y++;
                         newBlock.getValues().add(0.25 * sum);
-                    }
-                    else newBlock.getValues().add(0.25 * sum);
+                    } else newBlock.getValues().add(0.25 * sum);
                 }
-                if((newBlock.getTypeOfBlock()=='U' || newBlock.getTypeOfBlock()=='V')) x++;
+                if ((newBlock.getTypeOfBlock() == 'U' || newBlock.getTypeOfBlock() == 'V')) x++;
             }
 
             // add 128 from each value of matrix
@@ -236,5 +250,111 @@ public class Decoder {
 
             blockList.add(newBlock);
         }
+    }
+
+    public void entropyDecoding() {
+        for (int i = 0; i < output.size()/3; i++) {
+            List<Double> arrayOfBytesY = transformOutputToArrayBytes(output.get(i * 3));
+            List<Double> arrayOfBytesCb = transformOutputToArrayBytes(output.get(i * 3 + 1));
+            List<Double> arrayOfBytesCr = transformOutputToArrayBytes(output.get(i * 3 + 2));
+            Block blockY = zigZagBlockConstruct(arrayOfBytesY);
+            Block blockCb = zigZagBlockConstruct(arrayOfBytesCb);
+            Block blockCr = zigZagBlockConstruct(arrayOfBytesCr);
+
+            int X1 = (i * 8 / resolutionWidth) * 8;
+            int Y1 = (i * 8) % resolutionWidth;
+            int X2 = (i * 8 / resolutionWidth + 1) * 8;
+            int Y2 = (i * 8) % resolutionWidth + 8;
+            blockY.setPositionX1(X1);
+            blockY.setPositionY1(Y1);
+            blockY.setPositionX2(X2);
+            blockY.setPositionY2(Y2);
+            blockY.setTypeOfBlock('Y');
+
+            blockCb.setPositionX1(X1);
+            blockCb.setPositionY1(Y1);
+            blockCb.setPositionX2(X2);
+            blockCb.setPositionY2(Y2);
+            blockCb.setTypeOfBlock('V');
+
+            blockCr.setPositionX1(X1);
+            blockCr.setPositionY1(Y1);
+            blockCr.setPositionX2(X2);
+            blockCr.setPositionY2(Y2);
+            blockCr.setTypeOfBlock('U');
+
+            this.quantizedBlockList.add(blockY);
+            this.quantizedBlockList.add(blockCb);
+            this.quantizedBlockList.add(blockCr);
+        }
+    }
+
+    private List<Double> transformOutputToArrayBytes(String output) {
+        List<Double> arrayBytes = new ArrayList<>();
+        output = output.replace("),(", ";");
+        output = output.replace(")(", ",");
+        output = output.replace("(", "");
+        output = output.replace(")", "");
+        List<String> bytes = new ArrayList<>(Arrays.asList(output.split(";")));
+        // add first value
+        arrayBytes.add(Double.parseDouble(bytes.get(0).split(",")[1]));
+        // add other values;
+        for (int i = 1; i < bytes.size() - 1; i++) {
+            String[] s_byte = bytes.get(i).split(",");
+            int RUNLENGTH = Integer.parseInt(s_byte[0]);
+            int SIZE = Integer.parseInt(s_byte[1]);
+            double AMPLITUDE = Double.parseDouble(s_byte[2]);
+            for (int j = 0; j < RUNLENGTH; j++) {
+                arrayBytes.add(0.0);
+            }
+            arrayBytes.add(AMPLITUDE);
+        }
+        while (arrayBytes.size() < 64) {
+            arrayBytes.add(0.0);
+        }
+        //Collections.reverse(arrayBytes);
+        return arrayBytes;
+    }
+
+    private Block zigZagBlockConstruct(List<Double> array_bytes) {
+        List<List<Double>> matrix = new ArrayList<>();
+        for (int i = 0; i < 8; i++) {
+            matrix.add(new ArrayList<>(Arrays.asList(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)));
+        }
+
+        int n = matrix.size();
+        int m = matrix.get(0).size();
+        boolean goUpRight = true;
+        int i = 0, j = 0;
+        int index = 0;
+        while (i < n && j < m) {
+            matrix.get(i).set(j, array_bytes.get(index));
+            index++;
+            if (goUpRight) {
+                if (i - 1 >= 0 && j + 1 <= m) {
+                    i--;
+                    j++;
+                } else {
+                    j++;
+                    goUpRight = false;
+                }
+            } else {
+                if (i + 1 <= n && j - 1 >= 0) {
+                    i++;
+                    j--;
+                } else {
+                    i++;
+                    goUpRight = true;
+                }
+            }
+        }
+        Block block = new Block();
+        // now transform the matrix into a block
+        for (i = 0; i < 8; i++) {
+            for (j = 0; j < 8; j++) {
+                block.getValues().add(matrix.get(i).get(j));
+            }
+        }
+        return block;
     }
 }

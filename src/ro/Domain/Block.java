@@ -1,5 +1,6 @@
 package ro.Domain;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -18,6 +19,9 @@ public class Block {
         this.positionY2 = positionY2;
     }
 
+    public Block() {
+        values = new ArrayList<>();
+    }
 
     public List<Double> getValues() {
         return values;

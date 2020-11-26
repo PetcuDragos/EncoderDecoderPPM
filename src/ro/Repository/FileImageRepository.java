@@ -15,10 +15,12 @@ public class FileImageRepository {
     int resolutionWidth, resolutionHeight, maxValueOfByteComponent;
     private List<Pixel> pixelList;
     private List<Block> blockList;
+    private List<String> output;
 
     public FileImageRepository() {
         pixelList = new ArrayList<>();
         blockList = new ArrayList<>();
+        output = new ArrayList<>();
     }
 
     public void getEncodedDataFromBinFile(String fileName) {
@@ -98,6 +100,35 @@ public class FileImageRepository {
                 String readline = fileDescriptor.nextLine();
                 String[] strings = readline.split(" ");
                 this.blockList.add(new Block(Arrays.stream(strings).skip(5).map(Double::parseDouble).collect(Collectors.toList()), strings[0].charAt(0), Integer.parseInt(strings[1]), Integer.parseInt(strings[2]), Integer.parseInt(strings[3]), Integer.parseInt(strings[4])));
+            }
+        } catch (FileNotFoundException e) {
+            System.out.println(fileName + " was not found.");
+        }
+    }
+
+    public List<String> getOutput() {
+        return output;
+    }
+
+    public void setOutput(List<String> output) {
+        this.output = output;
+    }
+
+    public void getDecodedDataFromFile2(String fileName) {
+        try {
+            File file = new File(fileName);
+            Scanner fileDescriptor = new Scanner(file);
+            String firstLine = fileDescriptor.nextLine();
+            this.resolutionWidth = Integer.parseInt(firstLine.split(" ")[0]);
+            this.resolutionHeight = Integer.parseInt(firstLine.split(" ")[1]);
+            while (fileDescriptor.hasNextLine()) {
+                String readline1 = fileDescriptor.nextLine();
+                String readline2 = fileDescriptor.nextLine();
+                String readline3 = fileDescriptor.nextLine();
+                this.output.add(readline1);
+                this.output.add(readline2);
+                this.output.add(readline3);
+
             }
         } catch (FileNotFoundException e) {
             System.out.println(fileName + " was not found.");

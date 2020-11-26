@@ -22,12 +22,16 @@ public class ImageService {
         encoder.divideMatrixCr();
         encoder.performForwardDCT();
         encoder.performQuantization();
-        encoder.writeToFile("outputEncoder.txt");
+        encoder.entropyEncoding();
+        //encoder.writeToFile("outputEncoder.txt");
+        encoder.writeOutput("outputEncoder.txt");
     }
 
     public void decodeImage(String fileName) {
-        this.imageRepository.getDecodedDataFromFile(fileName);
-        Decoder decoder = new Decoder(imageRepository.getResolutionWidth(), imageRepository.getResolutionHeight(), imageRepository.getBlockList());
+        this.imageRepository.getDecodedDataFromFile2(fileName);
+        //Decoder decoder = new Decoder(imageRepository.getResolutionWidth(), imageRepository.getResolutionHeight(), imageRepository.getBlockList());
+        Decoder decoder = new Decoder(imageRepository.getResolutionWidth(), imageRepository.getResolutionHeight(), imageRepository.getOutput());
+        decoder.entropyDecoding();
         decoder.performDequantization();
         decoder.performInverseDCT();
         decoder.formMatrices();
