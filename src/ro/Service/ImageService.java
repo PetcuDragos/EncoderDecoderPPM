@@ -22,6 +22,7 @@ public class ImageService {
         encoder.divideMatrixCr();
         encoder.performForwardDCT();
         encoder.performQuantization();
+
         encoder.entropyEncoding();
         //encoder.writeToFile("outputEncoder.txt");
         encoder.writeOutput("outputEncoder.txt");

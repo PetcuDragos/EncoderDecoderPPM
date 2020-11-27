@@ -176,6 +176,9 @@ public class Encoder {
     }
 
 
+
+
+
     public void performForwardDCT() {
 
         for (Block block : this.blockList) {
@@ -300,6 +303,17 @@ public class Encoder {
             quantizedBlockList.add(newBlock);
         }
     }
+
+
+
+
+
+
+
+
+
+
+
 
     public void entropyEncoding() {
         for (Block block : quantizedBlockList) {

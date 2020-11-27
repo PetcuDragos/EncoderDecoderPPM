@@ -165,6 +165,9 @@ public class Decoder {
     }
 
 
+
+
+
     public void performDequantization() {
         /*
                 6   4   4   6   10  16  20  24
@@ -235,10 +238,8 @@ public class Decoder {
                             sum += alphaU * alphaV * matrix.get(i).get(j) * Math.cos((double) (2 * x + 1) * i * 3.14 * 0.0625) * Math.cos((double) (2 * y + 1) * j * 3.14 * 0.0625);
                         }
                     }
-                    if ((newBlock.getTypeOfBlock() == 'U' || newBlock.getTypeOfBlock() == 'V')) {
-                        y++;
-                        newBlock.getValues().add(0.25 * sum);
-                    } else newBlock.getValues().add(0.25 * sum);
+                    if ((newBlock.getTypeOfBlock() == 'U' || newBlock.getTypeOfBlock() == 'V')) { y++; }
+                    newBlock.getValues().add(0.25 * sum);
                 }
                 if ((newBlock.getTypeOfBlock() == 'U' || newBlock.getTypeOfBlock() == 'V')) x++;
             }
@@ -251,6 +252,14 @@ public class Decoder {
             blockList.add(newBlock);
         }
     }
+
+
+
+
+
+
+
+    
 
     public void entropyDecoding() {
         for (int i = 0; i < output.size()/3; i++) {
